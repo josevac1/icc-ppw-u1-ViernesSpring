@@ -1002,9 +1002,11 @@ Crear un script de carga masiva para poblar la base de datos con datos variados:
 3. **Filtros + paginación**: `GET /api/products/search?name=laptop&page=0&size=3`
 
 
-1[search](./imagenes/search.png)
+![search](./imagenes/search.png)
 
 4. **Ordenamiento**: `GET /api/products?sort=price,desc&page=1&size=5`
+
+![soprt](./imagenes/sort.png)
 
 
 
