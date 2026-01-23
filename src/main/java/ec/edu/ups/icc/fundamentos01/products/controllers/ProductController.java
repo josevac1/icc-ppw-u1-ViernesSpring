@@ -1,8 +1,7 @@
 package ec.edu.ups.icc.fundamentos01.products.controllers;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,11 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import ec.edu.ups.icc.fundamentos01.products.dtos.CreateProductDto;
-
 import ec.edu.ups.icc.fundamentos01.products.dtos.UpdateProductDto;
-
 import ec.edu.ups.icc.fundamentos01.products.dtos.ProductResponseDto;
-
+import ec.edu.ups.icc.fundamentos01.products.dtos.SliceResponseDto;
 import ec.edu.ups.icc.fundamentos01.products.services.ProductService;
 import jakarta.validation.Valid;
 
@@ -41,28 +38,10 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @GetMapping
-    public ResponseEntity<List<ProductResponseDto>> findAll() {
-        List<ProductResponseDto> products = productService.findAll();
-        return ResponseEntity.ok(products);
-    }
-
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponseDto> findById(@PathVariable("id") String id) {
         ProductResponseDto product = productService.findById(Long.parseLong(id));
         return ResponseEntity.ok(product);
-    }
-
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<ProductResponseDto>> findByUserId(@PathVariable("userId") Long userId) {
-        List<ProductResponseDto> products = productService.findByUserId(userId);
-        return ResponseEntity.ok(products);
-    }
-
-    @GetMapping("/category/{categoryId}")
-    public ResponseEntity<List<ProductResponseDto>> findByCategoryId(@PathVariable("categoryId") Long categoryId) {
-        List<ProductResponseDto> products = productService.findByCategoryId(categoryId);
-        return ResponseEntity.ok(products);
     }
 
     @PutMapping("/{id}")
@@ -79,20 +58,95 @@ public class ProductController {
         return ResponseEntity.noContent().build();
     }
 
-    // ============== PAGINACIÓN BÁSICA ==============
+    // ============== PAGINACIÓN BÁSICA (RAÍZ) ==============
+    @GetMapping
+    public ResponseEntity<Page<ProductResponseDto>> list(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @RequestParam(name = "sort", defaultValue = "id") String[] sort) {
 
-    /**
-     * Lista todos los productos con paginación básica
-     * Ejemplo: GET /api/products?page=0&size=10&sort=name,asc
-     */
-    @GetMapping("/paginated")
-    public ResponseEntity<Page<ProductResponseDto>> findAllPaginado(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String[] sort) {
-
-        Page<ProductResponseDto> products = productService.findAllPaginado(page, size, sort);
+        Page<ProductResponseDto> products = productService.findAll(page, size, sort);
         return ResponseEntity.ok(products);
     }
+
+// ============== PAGINACIÓN CON FILTROS ==============
+@GetMapping("/search")
+public ResponseEntity<Page<ProductResponseDto>> findWithFilters(
+        @RequestParam(name = "name", required = false) String name,
+        @RequestParam(name = "minPrice", required = false) Double minPrice,
+        @RequestParam(name = "maxPrice", required = false) Double maxPrice,
+        @RequestParam(name = "categoryId", required = false) Long categoryId,
+        @RequestParam(name = "page", defaultValue = "0") int page,
+        @RequestParam(name = "size", defaultValue = "10") int size,
+        @RequestParam(name = "sort", defaultValue = "createdAt") String[] sort) {
+
+    Page<ProductResponseDto> products = productService.findWithFilters(
+            name, minPrice, maxPrice, categoryId, page, size, sort);
+
+    return ResponseEntity.ok(products);
+}
+
+// ============== PAGINACIÓN CON SLICE ==============
+@GetMapping("/slice")
+public ResponseEntity<SliceResponseDto> findAllSlice(
+        @RequestParam(name = "page", defaultValue = "0") int page,
+        @RequestParam(name = "size", defaultValue = "10") int size,
+        @RequestParam(name = "sort", defaultValue = "id") String[] sort) {
+
+    Slice<ProductResponseDto> products = productService.findAllSlice(page, size, sort);
+    SliceResponseDto response = toSliceResponseDto(products);
+    return ResponseEntity.ok(response);
+}
+
+// ============== PRODUCTOS POR CATEGORÍA ==============
+@GetMapping("/category/{categoryId}")
+public ResponseEntity<Page<ProductResponseDto>> findByCategoryId(
+        @PathVariable("categoryId") Long categoryId,
+        @RequestParam(name = "page", defaultValue = "0") int page,
+        @RequestParam(name = "size", defaultValue = "10") int size,
+        @RequestParam(name = "sort", defaultValue = "id") String[] sort) {
+
+    Page<ProductResponseDto> products = productService.findByCategoryId(categoryId, page, size, sort);
+    return ResponseEntity.ok(products);
+}
+
+// ============== PRODUCTOS POR USUARIO ==============
+@GetMapping("/user/{userId}")
+public ResponseEntity<Page<ProductResponseDto>> findByUserId(
+        @PathVariable("userId") Long userId, // <-- IMPORTANTE
+        @RequestParam(name = "name", required = false) String name,
+        @RequestParam(name = "minPrice", required = false) Double minPrice,
+        @RequestParam(name = "maxPrice", required = false) Double maxPrice,
+        @RequestParam(name = "categoryId", required = false) Long categoryId,
+        @RequestParam(name = "page", defaultValue = "0") int page,
+        @RequestParam(name = "size", defaultValue = "10") int size,
+        @RequestParam(name = "sort", defaultValue = "createdAt") String[] sort) {
+
+    Page<ProductResponseDto> products = productService.findByUserIdWithFilters(
+            userId, name, minPrice, maxPrice, categoryId, page, size, sort);
+
+    return ResponseEntity.ok(products);
+}
+
+// ============== MÉTODOS HELPERS ==============
+
+private SliceResponseDto toSliceResponseDto(Slice<ProductResponseDto> slice) {
+    SliceResponseDto response = new SliceResponseDto();
+    response.content = slice.getContent();
+    response.empty = slice.isEmpty();
+    response.first = slice.isFirst();
+    response.last = slice.isLast();
+    response.number = slice.getNumber();
+    response.numberOfElements = slice.getNumberOfElements();
+    response.size = slice.getSize();
+    
+    SliceResponseDto.SortDto sortDto = new SliceResponseDto.SortDto();
+    sortDto.empty = slice.getSort().isEmpty();
+    sortDto.sorted = slice.getSort().isSorted();
+    sortDto.unsorted = !slice.getSort().isSorted();
+    response.sort = sortDto;
+    
+    return response;
+}
 
 }

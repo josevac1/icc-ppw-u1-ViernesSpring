@@ -7,62 +7,62 @@ BASE_URL = "http://localhost:8080/api/users"
 # Datos para crear 10 usuarios
 users_data = [
     {
-        "name": "Usuario 1",
-        "email": "usuario1@example.com",
+        "name": "Carlos Rodríguez",
+        "email": "carlos.rodriguez@techcorp.com",
         "password": "password123",
         "phone": "0987654321"
     },
     {
-        "name": "Usuario 2",
-        "email": "usuario2@example.com",
+        "name": "María García",
+        "email": "maria.garcia@innovate.com",
         "password": "password123",
         "phone": "0987654322"
     },
     {
-        "name": "Usuario 3",
-        "email": "usuario3@example.com",
+        "name": "Juan Martínez",
+        "email": "juan.martinez@solutions.com",
         "password": "password123",
         "phone": "0987654323"
     },
     {
-        "name": "Usuario 4",
-        "email": "usuario4@example.com",
+        "name": "Ana López",
+        "email": "ana.lopez@digital.com",
         "password": "password123",
         "phone": "0987654324"
     },
     {
-        "name": "Usuario 5",
-        "email": "usuario5@example.com",
+        "name": "Roberto Sánchez",
+        "email": "roberto.sanchez@enterprise.com",
         "password": "password123",
         "phone": "0987654325"
     },
     {
-        "name": "Usuario 6",
-        "email": "usuario6@example.com",
+        "name": "Sandra Pérez",
+        "email": "sandra.perez@webservices.com",
         "password": "password123",
         "phone": "0987654326"
     },
     {
-        "name": "Usuario 7",
-        "email": "usuario7@example.com",
+        "name": "Felipe Flores",
+        "email": "felipe.flores@cloudtech.com",
         "password": "password123",
         "phone": "0987654327"
     },
     {
-        "name": "Usuario 8",
-        "email": "usuario8@example.com",
+        "name": "Patricia Díaz",
+        "email": "patricia.diaz@softtech.com",
         "password": "password123",
         "phone": "0987654328"
     },
     {
-        "name": "Usuario 9",
-        "email": "usuario9@example.com",
+        "name": "Jorge Hernández",
+        "email": "jorge.hernandez@devops.com",
         "password": "password123",
         "phone": "0987654329"
     },
     {
-        "name": "Usuario 10",
-        "email": "usuario10@example.com",
+        "name": "Valentina Castillo",
+        "email": "valentina.castillo@nextgen.com",
         "password": "password123",
         "phone": "0987654330"
     }

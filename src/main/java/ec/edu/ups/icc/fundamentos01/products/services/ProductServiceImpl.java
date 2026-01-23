@@ -7,6 +7,7 @@ import java.util.Set;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -86,7 +87,54 @@ public class ProductServiceImpl implements ProductService {
                 .toList();
     }
 
-    // ============== MÉTODOS HELPER ==============
+    @Override
+    public Slice<ProductResponseDto> findAllSlice(int page, int size, String[] sort) {
+        Pageable pageable = createPageable(page, size, sort);
+        Slice<ProductEntity> productSlice = productRepo.findAll(pageable);
+        
+        return productSlice.map(this::toResponseDto);
+    }
+
+   @Override
+    public Page<ProductResponseDto> findWithFilters(
+            String name, Double minPrice, Double maxPrice, Long categoryId,
+            int page, int size, String[] sort) {
+        
+        // Validaciones de filtros (del tema 09)
+        validateFilterParameters(minPrice, maxPrice);
+        
+        // Crear Pageable
+        Pageable pageable = createPageable(page, size, sort);
+        
+        // Consulta con filtros y paginación
+        Page<ProductEntity> productPage = productRepo.findWithFilters(
+            name, minPrice, maxPrice, categoryId, pageable);
+        
+        return productPage.map(this::toResponseDto);
+    }
+
+      @Override
+    public Page<ProductResponseDto> findByUserIdWithFilters(
+            Long userId, String name, Double minPrice, Double maxPrice, Long categoryId,
+            int page, int size, String[] sort) {
+        
+        // 1. Validar que el usuario existe
+        if (!userRepo.existsById(userId)) {
+            throw new NotFoundException("Usuario no encontrado con ID: " + userId);
+        }
+        
+        // 2. Validar filtros
+        validateFilterParameters(minPrice, maxPrice);
+        
+        // 3. Crear Pageable
+        Pageable pageable = createPageable(page, size, sort);
+        
+        // 4. Consulta con filtros y paginación
+        Page<ProductEntity> productPage = productRepo.findByUserIdWithFilters(
+            userId, name, minPrice, maxPrice, categoryId, pageable);
+        
+        return productPage.map(this::toResponseDto);
+    }
 
     @Override
     public ProductResponseDto findById(Long id) {
@@ -162,16 +210,20 @@ public class ProductServiceImpl implements ProductService {
         dto.name = entity.getName();
         dto.price = entity.getPrice();
         dto.description = entity.getDescription();
+        dto.createdAt = entity.getCreatedAt();
+        dto.updatedAt = entity.getUpdatedAt();
 
         ProductResponseDto.UserSummaryDto ownerDto = new ProductResponseDto.UserSummaryDto();
         ownerDto.id = entity.getOwner().getId();
         ownerDto.name = entity.getOwner().getName();
+        ownerDto.email = entity.getOwner().getEmail();
 
         List<CategoryResponseDto> categoryDtos = new ArrayList<>();
         for (CategoryEntity categoryEntity : entity.getCategories()) {
             CategoryResponseDto categoryDto = new CategoryResponseDto();
             categoryDto.id = categoryEntity.getId();
             categoryDto.name = categoryEntity.getName();
+            categoryDto.description = categoryEntity.getDescription();
             categoryDtos.add(categoryDto);
         }
         dto.user = ownerDto;
@@ -193,16 +245,29 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Page<ProductResponseDto> findAllPaginado (int page, int size, String[] sort) {
+    public Page<ProductResponseDto> findByCategoryId(
+            Long categoryId,
+            int page,
+            int size,
+            String[] sort) {
+
+        // Validar que la categoría existe
+        if (!categoryRepo.existsById(categoryId)) {
+            throw new NotFoundException("Categoría no encontrada con ID: " + categoryId);
+        }
+
+        // Crear Pageable
         Pageable pageable = createPageable(page, size, sort);
-        Page<ProductEntity> productPage = productRepo.findAll(pageable);
-        
+
+        // Consulta con paginación
+        Page<ProductEntity> productPage = productRepo.findByCategoryId(categoryId, pageable);
+
         return productPage.map(this::toResponseDto);
     }
 
     // ============== MÉTODOS HELPER ==============
 
-    private Pageable createPageable(int page, int size, String[] sort) {
+      private Pageable createPageable(int page, int size, String[] sort) {
         // Validar parámetros
         if (page < 0) {
             throw new BadRequestException("La página debe ser mayor o igual a 0");
@@ -210,10 +275,10 @@ public class ProductServiceImpl implements ProductService {
         if (size < 1 || size > 100) {
             throw new BadRequestException("El tamaño debe estar entre 1 y 100");
         }
-
+        
         // Crear Sort
         Sort sortObj = createSort(sort);
-
+        
         return PageRequest.of(page, size, sortObj);
     }
 
@@ -223,29 +288,75 @@ public class ProductServiceImpl implements ProductService {
         }
 
         List<Sort.Order> orders = new ArrayList<>();
+        String lastProperty = null;
+        
         for (String sortParam : sort) {
-            String[] parts = sortParam.split(",");
-            String property = parts[0];
-            String direction = parts.length > 1 ? parts[1] : "asc";
-
-            // Validar propiedades permitidas para evitar inyección SQL
-            if (!isValidSortProperty(property)) {
-                throw new BadRequestException("Propiedad de ordenamiento no válida: " + property);
+            if (sortParam == null || sortParam.trim().isEmpty()) {
+                continue;
             }
-
-            Sort.Order order = "desc".equalsIgnoreCase(direction)
-                    ? Sort.Order.desc(property)
-                    : Sort.Order.asc(property);
-
-            orders.add(order);
+            
+            sortParam = sortParam.trim();
+            
+            // Caso 1: Si es "asc" o "desc" solo, aplicar a la última propiedad
+            if (sortParam.equalsIgnoreCase("asc") || sortParam.equalsIgnoreCase("desc")) {
+                if (lastProperty != null) {
+                    Sort.Direction direction = sortParam.equalsIgnoreCase("desc") 
+                        ? Sort.Direction.DESC 
+                        : Sort.Direction.ASC;
+                    orders.add(new Sort.Order(direction, lastProperty));
+                    lastProperty = null;
+                }
+                continue;
+            }
+            
+            // Caso 2: Si contiene coma, es "property,direction"
+            if (sortParam.contains(",")) {
+                String[] parts = sortParam.split(",");
+                String property = parts[0].trim();
+                String direction = parts[1].trim();
+                
+                if (!isValidSortProperty(property)) {
+                    throw new BadRequestException("Propiedad de ordenamiento no válida: " + property);
+                }
+                
+                Sort.Direction dir = direction.equalsIgnoreCase("desc") 
+                    ? Sort.Direction.DESC 
+                    : Sort.Direction.ASC;
+                orders.add(new Sort.Order(dir, property));
+                lastProperty = null;
+                continue;
+            }
+            
+            // Caso 3: Es una propiedad sola
+            if (isValidSortProperty(sortParam)) {
+                lastProperty = sortParam;
+                orders.add(new Sort.Order(Sort.Direction.ASC, sortParam));
+                continue;
+            }
+            
+            // No reconocido
+            throw new BadRequestException("Parámetro de ordenamiento no válido: " + sortParam);
         }
-
-        return Sort.by(orders);
+        
+        return orders.isEmpty() ? Sort.by("id") : Sort.by(orders);
     }
-
     private boolean isValidSortProperty(String property) {
         // Propiedades permitidas para ordenamiento
         return property.matches("^(id|name|price|description|createdAt|updatedAt)$");
+    }
+
+        private void validateFilterParameters(Double minPrice, Double maxPrice) {
+        if (minPrice != null && minPrice < 0) {
+            throw new BadRequestException("El precio mínimo no puede ser negativo");
+        }
+        
+        if (maxPrice != null && maxPrice < 0) {
+            throw new BadRequestException("El precio máximo no puede ser negativo");
+        }
+        
+        if (minPrice != null && maxPrice != null && maxPrice < minPrice) {
+            throw new BadRequestException("El precio máximo debe ser mayor o igual al precio mínimo");
+        }
     }
 
 }

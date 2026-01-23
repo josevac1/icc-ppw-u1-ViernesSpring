@@ -18,6 +18,7 @@ public abstract class BaseModel {
     protected void onCreate() {
         this.deleted = false;
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 
     @PreUpdate

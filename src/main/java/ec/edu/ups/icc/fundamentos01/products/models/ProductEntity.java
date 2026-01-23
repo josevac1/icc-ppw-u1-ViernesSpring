@@ -18,7 +18,7 @@ public class ProductEntity extends BaseModel {
     @Column(nullable = false)
     private Double price;
 
-    @Column(length = 500)
+    @Column(nullable = false, length = 500)
     private String description;
     // ================== RELACIONES 1:N ==================
 
