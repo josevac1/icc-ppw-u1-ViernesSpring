@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import ec.edu.ups.icc.fundamentos01.exceptions.domain.BadRequestException;
 import ec.edu.ups.icc.fundamentos01.exceptions.domain.ConflictException;
 import ec.edu.ups.icc.fundamentos01.security.Utils.JwtUtil;
 import ec.edu.ups.icc.fundamentos01.security.dto.AuthResponseDto;
